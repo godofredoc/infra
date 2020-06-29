@@ -19,9 +19,13 @@ load("//lib/consoles.star", "consoles")
 load("//lib/helpers.star", "helpers")
 load("//lib/repos.star", "repos")
 load("//lib/recipes.star", "recipes")
+load("//cocoon_config.star", "cocoon_config")
 load("//recipes_config.star", "recipes_config")
 load("//engine_config.star", "engine_config")
 load("//framework_config.star", "framework_config")
+load("//iostools_config.star", "iostools_config")
+load("//packages_config.star", "packages_config")
+load("//packaging_config.star", "packaging_config")
 
 # Avoid jumping back and forth with configs being updated by lower
 # version lucicfg.
@@ -163,151 +167,17 @@ luci.builder.defaults.properties.set({
 })
 
 ############################ End Global Defaults ############################
+cocoon_config.setup()
+
 engine_config.setup(BRANCHES)
 
 framework_config.setup(BRANCHES)
 
+iostools_config.setup()
+
+packages_config.setup()
+
+packaging_config.setup(BRANCHES)
+
 recipes_config.setup()
 ######################### Console Definitions #################################
-
-console_names = struct(packaging=consoles.console_view(
-    'packaging',
-    repos.FLUTTER,
-    refs=['refs/heads/beta', 'refs/heads/dev', 'refs/heads/stable'],
-    exclude_ref='refs/heads/master',
-), )
-
-# Gitiles pollers
-luci.gitiles_poller(
-    name='gitiles-trigger-dev-packaging',
-    bucket='prod',
-    repo=repos.FLUTTER,
-    refs=['refs/heads/dev'],
-)
-
-luci.gitiles_poller(
-    name='gitiles-trigger-beta-packaging',
-    bucket='prod',
-    repo=repos.FLUTTER,
-    refs=['refs/heads/beta'],
-)
-
-luci.gitiles_poller(
-    name='gitiles-trigger-stable-packaging',
-    bucket='prod',
-    repo=repos.FLUTTER,
-    refs=['refs/heads/stable'],
-)
-
-
-# Recipe definitions.
-def recipe(name):
-    luci.recipe(
-        name=name,
-        cipd_package='flutter/recipe_bundles/flutter.googlesource.com/recipes',
-        cipd_version='refs/heads/master',
-    )
-
-
-recipe('cocoon')
-recipe('ios-usb-dependencies')
-recipe('fuchsia_ctl')
-
-luci.list_view(
-    name='cocoon-try',
-    title='Cocoon try builders',
-)
-luci.list_view(
-    name='fuchsia_ctl-try',
-    title='fuchsia_ctl try builders',
-)
-
-# Builder-defining functions
-
-COMMON_LINUX_COCOON_BUILDER_ARGS = {
-    'recipe': 'cocoon',
-    'console_view_name': 'cocoon',
-    'list_view_name': 'cocoon-try',
-    'caches': [swarming.cache(name='dart_pub_cache', path='.pub-cache')],
-}
-
-common.linux_try_builder(name='Cocoon|cocoon',
-                         repo=repos.COCOON,
-                         **COMMON_LINUX_COCOON_BUILDER_ARGS)
-
-DEV_PACKAGING_BUILDER_ARGS = {
-    'recipe': 'flutter',
-    'console_view_name': console_names.packaging,
-    'triggered_by': ['gitiles-trigger-dev-packaging'],
-}
-
-BETA_PACKAGING_BUILDER_ARGS = {
-    'recipe':
-    'flutter%s' %
-    ('_%s' %
-     BRANCHES['beta']['version'] if BRANCHES['beta']['version'] else ''),
-    'console_view_name':
-    console_names.packaging,
-    'triggered_by': ['gitiles-trigger-beta-packaging'],
-}
-
-STABLE_PACKAGING_BUILDER_ARGS = {
-    'recipe': 'flutter_' + BRANCHES['stable']['version'],
-    'console_view_name': console_names.packaging,
-    'triggered_by': ['gitiles-trigger-stable-packaging'],
-}
-
-common.linux_prod_builder(name='Linux Flutter Dev Packaging|dev',
-                          **DEV_PACKAGING_BUILDER_ARGS)
-common.mac_prod_builder(name='Mac Flutter Dev Packaging|dev',
-                        **DEV_PACKAGING_BUILDER_ARGS)
-common.windows_prod_builder(name='Windows Flutter Dev Packaging|dev',
-                            **DEV_PACKAGING_BUILDER_ARGS)
-
-common.linux_prod_builder(name='Linux Flutter Beta Packaging|beta',
-                          **BETA_PACKAGING_BUILDER_ARGS)
-common.mac_prod_builder(name='Mac Flutter Beta Packaging|beta',
-                        **BETA_PACKAGING_BUILDER_ARGS)
-common.windows_prod_builder(name='Windows Flutter Beta Packaging|beta',
-                            **BETA_PACKAGING_BUILDER_ARGS)
-
-common.linux_prod_builder(name='Linux Flutter Stable Packaging|stbl',
-                          **STABLE_PACKAGING_BUILDER_ARGS)
-common.mac_prod_builder(name='Mac Flutter Stable Packaging|stbl',
-                        **STABLE_PACKAGING_BUILDER_ARGS)
-common.windows_prod_builder(name='Windows Flutter Stable Packaging|stbl',
-                            **STABLE_PACKAGING_BUILDER_ARGS)
-
-
-def ios_tools_builder(**kwargs):
-    builder = kwargs['name'].split('|')[0]
-    repo = 'https://flutter-mirrors.googlesource.com/' + builder
-    consoles.console_view(builder, repo)
-    luci.gitiles_poller(name='gitiles-trigger-' + builder,
-                        bucket='prod',
-                        repo=repo,
-                        triggers=[builder])
-    return common.mac_prod_builder(recipe='ios-usb-dependencies',
-                                   properties={
-                                       'package_name': builder + '-flutter',
-                                   },
-                                   console_view_name=builder,
-                                   triggering_policy=scheduler.greedy_batching(
-                                       max_concurrent_invocations=1,
-                                       max_batch_size=6),
-                                   **kwargs)
-
-
-ios_tools_builder(name='ideviceinstaller|idev')
-ios_tools_builder(name='libimobiledevice|libi')
-ios_tools_builder(name='libplist|plist')
-ios_tools_builder(name='usbmuxd|usbmd')
-ios_tools_builder(name='openssl|ssl')
-ios_tools_builder(name='ios-deploy|deploy')
-ios_tools_builder(name='libzip|zip')
-
-common.linux_try_builder(name='fuchsia_ctl|fctl',
-                         recipe='fuchsia_ctl',
-                         repo=repos.PACKAGES,
-                         list_view_name='fuchsia_ctl-try',
-                         properties={'fuchsia_ctl_version': None})
