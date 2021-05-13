@@ -1135,7 +1135,7 @@ def framework_try_config():
         properties = {
             "shard": "tool_integration_tests",
             "subshards": ["1_5", "2_5", "3_5", "4_5", "5_5"],
-            "dependencies": [{"dependency": "android_sdk"}, {"dependency": "chrome_and_driver"}, {"dependency": "open_jdk"}, {"dependency": "goldctl"}, {"dependency": "certs"}, {"dependency     ": "vs_build"}],
+            "dependencies": [{"dependency": "android_sdk"}, {"dependency": "chrome_and_driver"}, {"dependency": "open_jdk"}, {"dependency": "goldctl"}, {"dependency": "certs"}, {"dependency": "vs_build"}],
             "use_cas": True,
         },
         caches = WIN_DEFAULT_CACHES,
