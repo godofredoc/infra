@@ -29,6 +29,13 @@ def _setup(branches, fuchsia_ctl_version):
     """Default configurations for branches and repos."""
     platform_args = {
         "linux": {
+            "caches": [
+                # Allow disabling builder cache behavior in
+                # buildbucket. Removing the default "builder" cache that buildbucket would
+                # otherwise create with a 4 minute timeout preventing us from using any
+                # swarming task slice <4 minutes.
+                swarming.cache(path = "builder"),
+            ],
             "os": "Linux",
         },
         "mac": {
@@ -36,10 +43,25 @@ def _setup(branches, fuchsia_ctl_version):
                 swarming.cache(name = "flutter_cocoapods", path = "cocoapods"),
                 # Installing osx_sdk on mac builders is slow.
                 swarming.cache("osx_sdk", name = OLD_XCODE_CACHE_NAME),
+                # Allow disabling builder cache behavior in
+                # buildbucket. Removing the default "builder" cache that buildbucket would
+                # otherwise create with a 4 minute timeout preventing us from using any
+                # swarming task slice <4 minutes.
+                swarming.cache(path = "builder"),
             ],
             "os": "Mac-10.15",
         },
-        "windows": {"execution_timeout": timeout.XL, "os": "Windows-10"},
+        "windows": {
+            "caches": [
+                # Allow disabling builder cache behavior in
+                # buildbucket. Removing the default "builder" cache that buildbucket would
+                # otherwise create with a 4 minute timeout preventing us from using any
+                # swarming task slice <4 minutes.
+                swarming.cache(path = "builder"),
+            ],
+            "execution_timeout": timeout.XL,
+            "os": "Windows-10",
+        },
     }
 
     engine_recipes(branches.stable.version)
